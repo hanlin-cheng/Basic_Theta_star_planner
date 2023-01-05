@@ -1,17 +1,3 @@
-// Copyright 2020 Anshumaan Singh
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 #ifndef NAV2_THETA_STAR_PLANNER__THETA_STAR_PLANNER_HPP_
 #define NAV2_THETA_STAR_PLANNER__THETA_STAR_PLANNER_HPP_
 
@@ -43,17 +29,39 @@ namespace nav2_theta_star_planner
 class ThetaStarPlanner : public nav2_core::GlobalPlanner
 {
 public:
+  /**
+    * @brief Configuring plugin
+    * @param parent Lifecycle node pointer
+    * @param name Name of plugin map
+    * @param tf Shared ptr of TF2 buffer
+    * @param costmap_ros Costmap2DROS object
+    */  
   void configure(
     const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
     std::string name, std::shared_ptr<tf2_ros::Buffer> tf,
     std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros) override;
 
+  /**
+   * @brief Cleanup lifecycle node
+   */
   void cleanup() override;
 
+  /**
+   * @brief Activate lifecycle node
+   */
   void activate() override;
 
+  /**
+   * @brief Deactivate lifecycle node
+   */
   void deactivate() override;
 
+  /**
+   * @brief Creating a plan from start and goal poses Èë¿Úº¯Êý
+   * @param start Start pose
+   * @param goal Goal pose
+   * @return nav_msgs::Path of the generated path
+   */
   nav_msgs::msg::Path createPlan(
     const geometry_msgs::msg::PoseStamped & start,
     const geometry_msgs::msg::PoseStamped & goal) override;

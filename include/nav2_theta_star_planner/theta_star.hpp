@@ -1,17 +1,3 @@
-// Copyright 2020 Anshumaan Singh
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 #ifndef NAV2_THETA_STAR_PLANNER__THETA_STAR_HPP_
 #define NAV2_THETA_STAR_PLANNER__THETA_STAR_HPP_
 
@@ -48,6 +34,7 @@ struct tree_node
   double f = INF_COST;
 };
 
+// 小顶堆
 struct comp
 {
   bool operator()(const tree_node * p1, const tree_node * p2)
@@ -65,16 +52,22 @@ public:
   nav2_costmap_2d::Costmap2D * costmap_{};
 
   /// weight on the costmap traversal cost
+  /// 成本图遍历成本的权重
   double w_traversal_cost_;
   /// weight on the euclidean distance cost (used for calculations of g_cost)
+  /// 欧氏距离成本的权重（用于计算 g 成本）
   double w_euc_cost_;
   /// weight on the heuristic cost (used for h_cost calculations)
+  /// 启发式成本的权重（用于 h 成本计算）
   double w_heuristic_cost_;
   /// parameter to set the number of adjacent nodes to be searched on
+  /// 要在4个连接（上、下、左、右）和8个连接（所有相邻单元格）图形扩展之间进行选择，即可接受的值为4和8
   int how_many_corners_;
   /// parameter to set weather the planner can plan through unknown space
+  /// 是否允许通通往未知区域
   bool allow_unknown_;
   /// the x-directional and y-directional lengths of the map respectively
+  /// 分别是地图的 x 方向和 y 方向的长度
   int size_x_, size_y_;
 
   ThetaStar();
@@ -116,6 +109,7 @@ public:
     return !(isSafe(src_.x, src_.y)) || !(isSafe(dst_.x, dst_.y));
   }
 
+  // 统计已经展开的节点
   int nodes_opened = 0;
 
 protected:
@@ -123,22 +117,27 @@ protected:
   /// the pointer to the location at which the data of the node is present in nodes_data_
   /// it is initialised with size_x_ * size_y_ elements
   /// and its number of elements increases to account for a change in map size
+  /// 存储坐标点指针索引的容器，存储在node_position_[size_x_ * y + x]位置
   std::vector<tree_node *> node_position_;
 
   /// the vector nodes_data_ stores the coordinates, costs and index of the parent node,
   /// and whether or not the node is present in queue_, for all the nodes searched
   /// it is initialised with no elements
   /// and its size increases depending on the number of nodes searched
+  /// 存储节点数据，存储父节点的指针、成本和索引等
   std::vector<tree_node> nodes_data_;
 
   /// this is the priority queue (open_list) to select the next node to be expanded
+  /// 优先级队列open list，小顶堆
   std::priority_queue<tree_node *, std::vector<tree_node *>, comp> queue_;
-
+ 
   /// it is a counter like variable used to generate consecutive indices
   /// such that the data for all the nodes (in open and closed lists) could be stored
   /// consecutively in nodes_data_
+  /// 已经计算过的节点数目
   int index_generated_;
 
+  // 用于展开节点周围的八个节点
   const coordsM moves[8] = {{0, 1},
     {0, -1},
     {1, 0},
@@ -216,6 +215,7 @@ protected:
    *                    <parameter>*(<actual_traversal_cost_from_costmap>)^2/(<max_cost>)^2
    * @return the traversal cost thus calculated
    */
+   /// 计算遍历成本
   inline double getTraversalCost(const int & cx, const int & cy)
   {
     double curr_cost = getCost(cx, cy);
@@ -227,6 +227,7 @@ protected:
    *                    <euc_cost_parameter>*<euclidean distance between the points (ax, ay) and (bx, by)>
    * @return the distance thus calculated
    */
+  /// 从当前点到它父节点这一分段的成本距离g
   inline double getEuclideanCost(const int & ax, const int & ay, const int & bx, const int & by)
   {
     return w_euc_cost_ * std::hypot(ax - bx, ay - by);
@@ -237,6 +238,7 @@ protected:
    *                    <heuristic_cost_parameter>*<euclidean distance between the point and goal>
    * @return the heuristic cost
    */
+   /// 计算启发式H成本
   inline double getHCost(const int & cx, const int & cy)
   {
     return w_heuristic_cost_ * std::hypot(cx - dst_.x, cy - dst_.y);
@@ -270,6 +272,7 @@ protected:
    * @brief it stores id_this in node_position_ at the index [ size_x_*cy + cx ]
    * @param id_this a pointer to the location at which the data of the point(cx, cy) is stored in nodes_data_
    */
+   /// 插入节点指针索引
   inline void addIndex(const int & cx, const int & cy, tree_node * node_this)
   {
     node_position_[size_x_ * cy + cx] = node_this;
@@ -288,6 +291,7 @@ protected:
    * @brief this function depending on the size of the nodes_data_ vector allots space to store the data for a node(x, y)
    * @param id_this is the index at which the data is stored/has to be stored for that node
    */
+   /// 插入节点数据
   void addToNodesData(const int & id_this)
   {
     if (static_cast<int>(nodes_data_.size()) <= id_this) {

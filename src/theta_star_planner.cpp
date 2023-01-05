@@ -1,17 +1,3 @@
-// Copyright 2020 Anshumaan Singh
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 #include <vector>
 #include <memory>
 #include <string>
@@ -40,6 +26,7 @@ void ThetaStarPlanner::configure(
 
   node->get_parameter(name_ + ".how_many_corners", planner_->how_many_corners_);
 
+  // 要在4个连接（上、下、左、右）和8个连接（所有相邻单元格）图形扩展之间进行选择，即可接受的值只可以是4和8。
   if (planner_->how_many_corners_ != 8 && planner_->how_many_corners_ != 4) {
     planner_->how_many_corners_ = 8;
     RCLCPP_WARN(logger_, "Your value for - .how_many_corners  was overridden, and is now set to 8");
@@ -84,6 +71,7 @@ void ThetaStarPlanner::deactivate()
   RCLCPP_INFO(logger_, "Deactivating plugin %s of type nav2_theta_star_planner", name_.c_str());
 }
 
+// 入口函数
 nav_msgs::msg::Path ThetaStarPlanner::createPlan(
   const geometry_msgs::msg::PoseStamped & start,
   const geometry_msgs::msg::PoseStamped & goal)
@@ -93,6 +81,7 @@ nav_msgs::msg::Path ThetaStarPlanner::createPlan(
 
   // Corner case of start and goal beeing on the same cell
   unsigned int mx_start, my_start, mx_goal, my_goal;
+  // 判断起始点是否在地图内
   if (!planner_->costmap_->worldToMap(
       start.pose.position.x, start.pose.position.y, mx_start, my_start))
   {
@@ -101,6 +90,7 @@ nav_msgs::msg::Path ThetaStarPlanner::createPlan(
             std::to_string(start.pose.position.y) + ") was outside bounds");
   }
 
+  // 判断目标点是否在地图内
   if (!planner_->costmap_->worldToMap(
       goal.pose.position.x, goal.pose.position.y, mx_goal, my_goal))
   {
@@ -109,18 +99,21 @@ nav_msgs::msg::Path ThetaStarPlanner::createPlan(
             std::to_string(goal.pose.position.y) + ") was outside bounds");
   }
 
+  // 判断起始点是否在致命障碍grid中
   if (planner_->costmap_->getCost(mx_start, my_start) == nav2_costmap_2d::LETHAL_OBSTACLE) {
     throw nav2_core::StartOccupied(
             "Start Coordinates of(" + std::to_string(start.pose.position.x) + ", " +
             std::to_string(start.pose.position.y) + ") was in lethal cost");
   }
 
+  // 判断目标点是否在致命障碍grid中
   if (planner_->costmap_->getCost(mx_goal, my_goal) == nav2_costmap_2d::LETHAL_OBSTACLE) {
     throw nav2_core::GoalOccupied(
             "Goal Coordinates of(" + std::to_string(goal.pose.position.x) + ", " +
             std::to_string(goal.pose.position.y) + ") was in lethal cost");
   }
 
+  // 如果起始点与目标点相同的情况
   if (mx_start == mx_goal && my_start == my_goal) {
     global_path.header.stamp = clock_->now();
     global_path.header.frame_id = global_frame_;
@@ -139,10 +132,12 @@ nav_msgs::msg::Path ThetaStarPlanner::createPlan(
     return global_path;
   }
 
+  // 初始化起点和终点的值
   planner_->setStartAndGoal(start, goal);
   RCLCPP_DEBUG(
     logger_, "Got the src and dst... (%i, %i) && (%i, %i)",
     planner_->src_.x, planner_->src_.y, planner_->dst_.x, planner_->dst_.y);
+  // 规划路径算法入口
   getPlan(global_path);
   // check if a plan is generated
   size_t plan_size = global_path.poses.size();
@@ -154,6 +149,7 @@ nav_msgs::msg::Path ThetaStarPlanner::createPlan(
   // previous pose to set the orientation to the 'final approach' orientation of the robot so
   // it does not rotate.
   // And deal with corner case of plan of length 1
+  // 计算搜索出的目的地cell的方向角度
   if (use_final_approach_orientation_) {
     if (plan_size == 1) {
       global_path.poses.back().pose.orientation = start.pose.orientation;
@@ -176,15 +172,18 @@ nav_msgs::msg::Path ThetaStarPlanner::createPlan(
   return global_path;
 }
 
+// 规划路径算法入口
 void ThetaStarPlanner::getPlan(nav_msgs::msg::Path & global_path)
 {
   std::vector<coordsW> path;
+  // 检查是否使用安全的起始点和目标点进行路径规划
   if (planner_->isUnsafeToPlan()) {
     global_path.poses.clear();
     throw nav2_core::PlannerException("Either of the start or goal pose are an obstacle! ");
-  } else if (planner_->generatePath(path)) {
+  } else if (planner_->generatePath(path)) { // 生成路径入口
+    // 在路径点之间进行插值以扩充路径点
     global_path = linearInterpolation(path, planner_->costmap_->getResolution());
-  } else {
+  } else { // 路径规划失败
     global_path.poses.clear();
     throw nav2_core::NoValidPathCouldBeFound("Could not generate path between the given poses");
   }
@@ -192,6 +191,7 @@ void ThetaStarPlanner::getPlan(nav_msgs::msg::Path & global_path)
   global_path.header.frame_id = global_frame_;
 }
 
+// 在路径点之间进行插值
 nav_msgs::msg::Path ThetaStarPlanner::linearInterpolation(
   const std::vector<coordsW> & raw_path,
   const double & dist_bw_points)
